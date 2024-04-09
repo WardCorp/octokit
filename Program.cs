@@ -13,26 +13,14 @@ class Program
         var token = Environment.GetEnvironmentVariable("GH_TOKEN");
         github.Credentials = new Credentials(token);
 
-        var repositories = await github.Repository.GetAllForOrg("your-organisation"); // NOTE: replace "your-organisation" with your actual organisation name
+        var repositories = await github.Repository.GetAllForOrg("WardCorp"); // NOTE: replace "your-organisation" with your actual organisation name
 
         var contributors = new Dictionary<string, int>();
 
-        foreach (var repo in repositories)
-        {
-            var stats = await github.Repository.Statistics.GetContributors(repo.Id);
-
-            foreach (var stat in stats)
-            {
-                if (contributors.ContainsKey(stat.Author.Login))
-                {
-                    contributors[stat.Author.Login] += stat.Total;
-                }
-                else
-                {
-                    contributors[stat.Author.Login] = stat.Total;
-                }
-            }
-        }
+        contributors = repositories
+            .SelectMany(repo => github.Repository.Statistics.GetContributors(repo.Id).Result)
+            .GroupBy(stat => stat.Author.Login)
+            .ToDictionary(group => group.Key, group => group.Sum(stat => stat.Total));
 
         using (var writer = new StreamWriter("output.csv"))
         {
